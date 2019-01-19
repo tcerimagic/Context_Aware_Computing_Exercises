@@ -259,15 +259,17 @@ to hardcoded_plus [hc-radius hc-x hc-y]
 
 end
 
-
 to house
-
+ add-GP "moving" -20 -20
+  let house_points  [[20 20] [20 -20] [-20 -20] [-20 20] [0 43] [20 20] [-20 20] [20 -20]]
+  foreach house_points [ i ->  hardcoded_plus 30 item 0 i item 1 i]
+  stop
 end
 
 to heart
   add-GP "moving" 0 20
   let heart_points  [[10 30] [20 30] [30 20] [30 0] [0 -30] [-30 0] [-30 20] [-20 30] [-10 30] [0 20]]
-  foreach heart_points [ i ->  hardcoded_plus 10 item 0 i item 1 i]
+  foreach heart_points [ i ->  hardcoded_plus 30 item 0 i item 1 i]
   stop
 end
 @#$#@#$#@
@@ -324,7 +326,7 @@ number-processors
 number-processors
 0
 10151
-3168.0
+5237.0
 1
 1
 NIL
