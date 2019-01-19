@@ -112,7 +112,7 @@ ifelse initial-GP-set = false and static-GP-set = false
       pd
       set pen-size 4
       set breed gps
-      set color green
+      set color red
       set shape "circle"
       set gp_type "moving"
       set concentration 0
@@ -133,14 +133,14 @@ ifelse initial-GP-set = false and static-GP-set = false
       set label "GP"
       ifelse trop = "plus" [
         set breed gps
-        set color blue
+        set color green
         set shape "circle"
         set gp_type "plus"
         set gp_pos gp-counter
         set visited false
       ][
         set breed gps
-        set color red
+        set color yellow
         set shape "circle"
         set gp_type "minus"
         set gp_pos gp-counter
