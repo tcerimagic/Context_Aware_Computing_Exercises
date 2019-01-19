@@ -146,15 +146,15 @@ let radius read-from-string user-input "Size of the ortho plus radius?"
 
   ask growing-point[
     let tmp gp_pos
-    set concentrations array:from-list n-values max_number_of_gps [0]
-    array:set concentrations tmp radius
+    set concentrations array:from-list n-values max_number_of_gps [0] ; we set the init values of concentrations
+    array:set concentrations tmp radius ; we set the concentration for the GP as well
     ask other processors in-radius radius[
-      array:set concentrations tmp radius - (distance myself)
-      let new_con array:item concentrations tmp
+      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for processors in the given radius
+      let new_con array:item concentrations tmp ; we use this so we leave the colour of the strongest concentration in processors
       let need-change true
       foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > new_con [set need-change false]]
       if need-change and breed != gps[
-        set color tmp * 10 - array:item concentrations tmp * 0.25
+        set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
       ]
     ]
   ]
@@ -175,48 +175,30 @@ end
 
 
 to go
-
-
-;  ask gps with [gp_type = "moving"][
-;
-;    let tmp concentration
-;    ifelse any? other turtles in-radius rad with [array:item concentrations 0 > tmp][
-;      print "tu"
-;      set concentration [array:item concentrations 0] of max-one-of other turtles in-radius rad [array:item concentrations 0]
-;      print concentration
-;      ask max-one-of other turtles in-radius rad [array:item concentrations 0]
-;      [
-;        show array:item concentrations 0
-;        set color blue
-;      ]
-;      move-to max-one-of other turtles in-radius rad [array:item concentrations 0]
-;      set rad 0
-;    ][
-;      set rad rad + 1
-;    ]
-;  ]
   if not done[
     ask gps with [gp_type = "moving"][
 
-;    foreach
-    let tmp concentration
-    while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][
-      set rad rad + 1
-    ]
-    set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-    ask max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-    [
-      show array:item concentrations act_gp
-      set color blue
-    ]
-    move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-    if any? other gps-here [set act_gp act_gp + 1 set concentration 0]
-    ask other gps-here [set visited true]
-    set rad 0
-    if not any? gps with [visited = false] [set done true]
-  ]
 
-  tick
+      let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
+      while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
+        set rad rad + 1
+      ]
+      set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
+;      ask max-one-of other turtles in-radius rad [array:item concentrations act_gp]
+;      [
+;        set color blue
+;      ]
+      move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
+      if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
+        set act_gp act_gp + 1  ; we set the number of the next active GP
+        set concentration 0
+      ]
+      ask other gps-here [set visited true]
+      set rad 0
+      if not any? gps with [visited = false] [set done true]
+    ]
+
+    tick
   ]
 end
 
@@ -233,6 +215,7 @@ to visualize-radius
     let max_con 0
     let pos 0
     let need-change false
+    ; we set the colour for the strongest concentration of each processor
     foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > max_con [
       set max_con array:item concentrations i
       set pos i
@@ -345,7 +328,7 @@ BUTTON
 59
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
