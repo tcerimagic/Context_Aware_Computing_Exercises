@@ -49,11 +49,16 @@ to setup
   ; Control boolean for static GPs
   set static-GP-set false
 
+  let manual read-from-string user-input "Put 1 for manual version"
+
+  if manual = 1 [
   ; Wait for the initial GP
   while [initial-GP-set = false]
   [
     mouse-manager("moving")
   ]
+  ]
+
 
   ; Clear ticks
   reset-ticks
@@ -80,7 +85,7 @@ to mouse-manager[trop]
   let mouse-is-down? mouse-down?
   if mouse-clicked?
   [
-    add-GP(trop)
+    add-GP trop 666 666
   ]
   set mouse-was-down? mouse-is-down?
 end
@@ -89,11 +94,18 @@ to colouring[gp_position]
 
 end
 
-to add-GP[trop]
+to add-GP[trop hc-x hc-y]
 ifelse initial-GP-set = false and static-GP-set = false
   [
     set initial-GP-set true
+    ifelse hc-x = 666
+    [
     set growing-point min-one-of processors [distancexy mouse-xcor mouse-ycor]
+    ]
+    [
+     set growing-point min-one-of processors [distancexy hc-x hc-y]
+    ]
+
     ask growing-point
     [
       set label "Walker"
@@ -109,7 +121,13 @@ ifelse initial-GP-set = false and static-GP-set = false
     ]
   ]
   [
+    ifelse hc-x = 666
+    [
     set growing-point min-one-of processors [distancexy mouse-xcor mouse-ycor]
+    ]
+    [
+      set growing-point min-one-of processors [distancexy hc-x hc-y]
+    ]
     ask growing-point
     [
       set label "GP"
@@ -137,32 +155,20 @@ end
 
 
 to create-ortho-plus
-let radius read-from-string user-input "Size of the ortho plus radius?"
+  let radius read-from-string user-input "Size of the ortho minus radius?"
   while [static-GP-set = false]
   [
     mouse-manager("plus")
   ]
   set static-GP-set false
 
-  ask growing-point[
-    let tmp gp_pos
-    set concentrations array:from-list n-values max_number_of_gps [0] ; we set the init values of concentrations
-    array:set concentrations tmp radius ; we set the concentration for the GP as well
-    ask other processors in-radius radius[
-      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for processors in the given radius
-      let new_con array:item concentrations tmp ; we use this so we leave the colour of the strongest concentration in processors
-      let need-change true
-      foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > new_con [set need-change false]]
-      if need-change and breed != gps[
-        set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
-      ]
-    ]
-  ]
+  calculate-concentrations radius
 end
 
 to create-ortho-minus
- let radius-size read-from-string user-input "Size of the ortho minus radius?"
-  while [static-GP-set = false]
+    let radius read-from-string user-input "Size of the ortho minus radius?"
+
+    while [static-GP-set = false]
   [
     mouse-manager("minus")
   ]
@@ -226,6 +232,43 @@ to visualize-radius
       ]
   ]
 
+end
+
+to calculate-concentrations [radius]
+  ask growing-point[
+    let tmp gp_pos
+    set concentrations array:from-list n-values max_number_of_gps [0] ; we set the init values of concentrations
+    array:set concentrations tmp radius ; we set the concentration for the GP as well
+    ask other processors in-radius radius[
+      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for processors in the given radius
+      let new_con array:item concentrations tmp ; we use this so we leave the colour of the strongest concentration in processors
+      let need-change true
+      foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > new_con [set need-change false]]
+      if need-change and breed != gps[
+        set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
+      ]
+    ]
+  ]
+end
+
+
+to hardcoded_plus [hc-radius hc-x hc-y]
+
+  add-GP "plus" hc-x hc-y
+  calculate-concentrations hc-radius
+
+end
+
+
+to house
+
+end
+
+to heart
+  add-GP "moving" 0 20
+  let heart_points  [[10 30] [20 30] [30 20] [30 0] [0 -30] [-30 0] [-30 20] [-20 30] [-10 30] [0 20]]
+  foreach heart_points [ i ->  hardcoded_plus 10 item 0 i item 1 i]
+  stop
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -381,11 +424,45 @@ max_number_of_gps
 max_number_of_gps
 0
 12
-5.0
+12.0
 1
 1
 NIL
 HORIZONTAL
+
+BUTTON
+66
+395
+132
+428
+NIL
+House
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+69
+452
+132
+485
+NIL
+Heart
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
