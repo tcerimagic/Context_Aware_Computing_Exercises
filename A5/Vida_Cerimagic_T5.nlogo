@@ -209,12 +209,21 @@ to go
       ]
       ifelse act_gp_type = "plus" [
         let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
-        while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
-          set rad rad + 1
+        ifelse concentration = 0 [
+          while[not any? other processors in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
+            set rad rad + 1
+          ]
+          set concentration [array:item concentrations act_gp] of max-one-of other processors in-radius rad [array:item concentrations act_gp]
+          move-to max-one-of other processors in-radius rad [array:item concentrations act_gp] ; we move
+          ask turtles-here [set color red]
+        ][
+                    while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
+            set rad rad + 1
+          ]
+          set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
+          move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
+          ask turtles-here [set color red]
         ]
-        set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-        move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
-        ask turtles-here [set color red]
         if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
           ifelse manual-version = true
           [
@@ -309,6 +318,7 @@ to go
     tick
   ][
     print "we are done"
+    stop
   ]
 end
 
@@ -342,7 +352,6 @@ end
 
 
 to hardcoded_plus [hc-radius hc-x hc-y]
-
   add-GP "plus" hc-x hc-y
   calculate-concentrations hc-radius
 end
@@ -366,13 +375,13 @@ to heart
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-235
-17
-1253
-1036
+262
+19
+1057
+815
 -1
 -1
-10.0
+7.0
 1
 10
 1
@@ -418,7 +427,7 @@ number-processors
 number-processors
 0
 10151
-5237.0
+5310.0
 1
 1
 NIL
@@ -465,7 +474,7 @@ BUTTON
 59
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
