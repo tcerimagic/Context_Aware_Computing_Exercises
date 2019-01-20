@@ -3,9 +3,9 @@ extensions [palette array]
 breed [processors processor]
 breed [gps gp]
 
-processors-own[material pheromone concentrations ]
+processors-own[material pheromone concentrations]
 gps-own[gp_type gp_pos visited concentrations concentration]
-globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp done]
+globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp done manual-version active-gp-list hc-counter]
 
 
 
@@ -37,6 +37,7 @@ to setup
   ]
 
   set gp-counter 0
+  set hc-counter 0
   set rad 1
   set act_gp 0
   set done false
@@ -52,6 +53,7 @@ to setup
   let manual read-from-string user-input "Put 1 for manual version"
 
   if manual = 1 [
+   set manual-version true
   ; Wait for the initial GP
   while [initial-GP-set = false]
   [
@@ -162,7 +164,7 @@ to create-ortho-plus
   ]
   set static-GP-set false
 
-  calculate-concentrations radius
+  calculate-concentrations radius ; calculate concentrations of processors in the defined radius
 end
 
 to create-ortho-minus
@@ -179,11 +181,27 @@ to create-ortho-minus
 
 end
 
+to calculate-concentrations [radius]
+  ask growing-point[
+    let tmp gp_pos
+    set concentrations array:from-list n-values max_number_of_gps [0] ; we set the init values of concentrations
+    array:set concentrations tmp radius ; we set the concentration for the GP as well
+    ask other processors in-radius radius[
+      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for processors in the given radius
+      let new_con array:item concentrations tmp ; we use this so we leave the colour of the strongest concentration in processors
+      let need-change true
+      foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > new_con [set need-change false]]
+      if need-change and breed != gps[
+        set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
+      ]
+    ]
+  ]
+end
+
 
 to go
   if not done[
     ask gps with [gp_type = "moving"][
-
 
       let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
       while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
@@ -195,13 +213,32 @@ to go
 ;        set color blue
 ;      ]
       move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
+      ask turtles-here [set color red]
       if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
+        ifelse manual-version = true
+       [
         set act_gp act_gp + 1  ; we set the number of the next active GP
-        set concentration 0
+       ]
+        [
+          set hc-counter hc-counter + 1 ; global iterator for hardcoded version
+          if hc-counter < length active-gp-list ; while the iterator is smaller then the length of the hardcoded growing points list
+         [
+          set act_gp item hc-counter active-gp-list ; set active gp to the one that is at the iterator's place in the list
+         ]
+        ]
+          set concentration 0
       ]
-      ask other gps-here [set visited true]
-      set rad 0
-      if not any? gps with [visited = false] [set done true]
+
+      ifelse manual-version = true
+      [
+        ask other gps-here [set visited true]
+        set rad 0
+        if not any? gps with [visited = false] [set done true]
+      ]
+      [
+        set rad 0
+        if hc-counter = length active-gp-list [set done true] ; if we went through the whole predefined list we are done
+      ]
     ]
 
     tick
@@ -234,41 +271,29 @@ to visualize-radius
 
 end
 
-to calculate-concentrations [radius]
-  ask growing-point[
-    let tmp gp_pos
-    set concentrations array:from-list n-values max_number_of_gps [0] ; we set the init values of concentrations
-    array:set concentrations tmp radius ; we set the concentration for the GP as well
-    ask other processors in-radius radius[
-      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for processors in the given radius
-      let new_con array:item concentrations tmp ; we use this so we leave the colour of the strongest concentration in processors
-      let need-change true
-      foreach n-values max_number_of_gps [ i -> i ] [ i -> if array:item concentrations i > new_con [set need-change false]]
-      if need-change and breed != gps[
-        set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
-      ]
-    ]
-  ]
-end
+
 
 
 to hardcoded_plus [hc-radius hc-x hc-y]
 
   add-GP "plus" hc-x hc-y
   calculate-concentrations hc-radius
-
 end
 
 to house
- add-GP "moving" -20 -20
-  let house_points  [[20 20] [20 -20] [-20 -20] [-20 20] [0 43] [20 20] [-20 20] [20 -20]]
-  foreach house_points [ i ->  hardcoded_plus 30 item 0 i item 1 i]
+  set manual-version false
+  set active-gp-list [0 1 2 0 3 4 1 3 2] ;list of gps to visit in this particular order
+ add-GP "moving" -20 -20 ;mover
+  let house_points  [[-20 -20] [20 20] [20 -20] [-20 20] [0 43]] ; hardcoded points whose indexec correspond with the active-gp-list
+  foreach house_points [ i ->  hardcoded_plus 30 item 0 i item 1 i] ; set radius and xy coordinates for every point
   stop
 end
 
 to heart
+  set manual-version false
+  set active-gp-list [0 1 2 3 4 5 6 7 8 9 0]
   add-GP "moving" 0 20
-  let heart_points  [[10 30] [20 30] [30 20] [30 0] [0 -30] [-30 0] [-30 20] [-20 30] [-10 30] [0 20]]
+  let heart_points  [[0 20] [10 30] [20 30] [30 20] [30 0] [0 -30] [-30 0] [-30 20] [-20 30] [-10 30]]
   foreach heart_points [ i ->  hardcoded_plus 30 item 0 i item 1 i]
   stop
 end
@@ -373,7 +398,7 @@ BUTTON
 59
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
