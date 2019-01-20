@@ -5,7 +5,7 @@ breed [gps gp]
 
 processors-own[material pheromone concentrations]
 gps-own[gp_type gp_pos visited concentrations concentration]
-globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp done manual-version active-gp-list hc-counter]
+globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp act_gp_type done manual-version active-gp-list hc-counter]
 
 
 
@@ -41,6 +41,7 @@ to setup
   set rad 1
   set act_gp 0
   set done false
+
   ; Ask user to place the moving GP
   ;user-message "To begin, place the moving GP"
 
@@ -119,6 +120,7 @@ ifelse initial-GP-set = false and static-GP-set = false
       set gp_type "moving"
       set concentration 0
       set visited true
+      set gp_pos -1
       set label-color color
     ]
   ]
@@ -157,7 +159,7 @@ end
 
 
 to create-ortho-plus
-  let radius read-from-string user-input "Size of the ortho minus radius?"
+  let radius read-from-string user-input "Size of the ortho plus radius?"
   while [static-GP-set = false]
   [
     mouse-manager("plus")
@@ -168,17 +170,14 @@ to create-ortho-plus
 end
 
 to create-ortho-minus
-    let radius read-from-string user-input "Size of the ortho minus radius?"
-
-    while [static-GP-set = false]
+  let radius read-from-string user-input "Size of the ortho minus radius?"
+  while [static-GP-set = false]
   [
     mouse-manager("minus")
   ]
   set static-GP-set false
-  ask processors with [label = "GP"][
-    show gp_pos
-  ]
 
+  calculate-concentrations radius ; calculate concentrations of processors in the defined radius
 end
 
 to calculate-concentrations [radius]
@@ -195,53 +194,121 @@ to calculate-concentrations [radius]
         set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
       ]
     ]
+    ask other gps in-radius radius[
+      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for moving gps in the given radius
+    ]
   ]
 end
 
 
 to go
-  if not done[
+  ifelse not done[
     ask gps with [gp_type = "moving"][
-
-      let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
-      while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
-        set rad rad + 1
+      ask gps with [gp_pos = act_gp] [
+        set act_gp_type gp_type
       ]
-      set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-;      ask max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-;      [
-;        set color blue
-;      ]
-      move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
-      ask turtles-here [set color red]
-      if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
-        ifelse manual-version = true
-       [
-        set act_gp act_gp + 1  ; we set the number of the next active GP
-       ]
-        [
-          set hc-counter hc-counter + 1 ; global iterator for hardcoded version
-          if hc-counter < length active-gp-list ; while the iterator is smaller then the length of the hardcoded growing points list
-         [
-          set act_gp item hc-counter active-gp-list ; set active gp to the one that is at the iterator's place in the list
-         ]
+      ifelse act_gp_type = "plus" [
+        let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
+        while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
+          set rad rad + 1
         ]
+        set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
+        move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
+        ask turtles-here [set color red]
+        if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
+          ifelse manual-version = true
+          [
+            set act_gp act_gp + 1  ; we set the number of the next active GP
+          ]
+          [
+            set hc-counter hc-counter + 1 ; global iterator for hardcoded version
+            if hc-counter < length active-gp-list ; while the iterator is smaller then the length of the hardcoded growing points list
+            [
+              set act_gp item hc-counter active-gp-list ; set active gp to the one that is at the iterator's place in the list
+            ]
+          ]
           set concentration 0
-      ]
+        ]
 
-      ifelse manual-version = true
-      [
-        ask other gps-here [set visited true]
-        set rad 0
-        if not any? gps with [visited = false] [set done true]
-      ]
-      [
-        set rad 0
-        if hc-counter = length active-gp-list [set done true] ; if we went through the whole predefined list we are done
+        ifelse manual-version = true
+        [
+          ask other gps-here [set visited true]
+          set rad 0
+          if not any? gps with [visited = false] [set done true]
+        ]
+        [
+          set rad 0
+          if hc-counter = length active-gp-list [set done true] ; if we went through the whole predefined list we are done
+        ]
+      ][ ;gp_type = "minus"
+        let already_set false
+        let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
+        if tmp = 0 [ ;setting first concentration
+          if act_gp = 0 and array:item concentrations act_gp = 0 [
+            print "error - zacinam mimo radius" ; it's an error if processor here has concentration 0 -> walker is not in any radius
+            set done true
+            stop
+          ]
+
+          ifelse not any? processors-here [
+            if any? other gps-here[
+              let err true
+              ask other gps-here [
+                if array:item concentrations act_gp != 0 [
+                  set err false
+              ]]
+              if err [
+                print "error - zacinam mimo radius" ; it's an error if processor here has concentration 0 -> walker is not in any radius
+                set done true
+                stop
+            ]]
+              while[not any? other processors in-radius rad with [array:item concentrations act_gp > 0]][ ; increasing the radius till we find suitable processor for the movement
+                set rad rad + 1
+              ]
+              set concentration [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp]
+              move-to min-one-of other processors in-radius rad [array:item concentrations act_gp] ; we move
+              ask turtles-here [set color red]
+              set rad 0
+              set already_set true
+              if [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp] = 0[
+                ask gps with [gp_pos = act_gp][set visited true]
+                set concentration 0
+                set act_gp act_gp + 1
+                set rad 0
+                if not any? gps with [visited = false] [set done true]
+              ]
+
+          ][
+            set concentration [array:item concentrations act_gp] of min-one-of processors-here [array:item concentrations act_gp]
+          ]
+
+
+
+          set tmp concentration
+          ask turtles-here [set color red]
+        ]
+        if not already_set[
+          while[not any? other processors in-radius rad with [array:item concentrations act_gp < tmp]][ ; increasing the radius till we find suitable processor for the movement
+            set rad rad + 1
+          ]
+          ifelse [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp] = 0[
+            ask gps with [gp_pos = act_gp][set visited true]
+            set concentration 0
+            set act_gp act_gp + 1
+            set rad 0
+            if not any? gps with [visited = false] [set done true]
+          ][
+            set concentration [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp]
+            move-to min-one-of other processors in-radius rad [array:item concentrations act_gp] ; we move
+            ask turtles-here [set color red]
+            set rad 0
+          ]
+        ]
       ]
     ]
-
     tick
+  ][
+    print "we are done"
   ]
 end
 
