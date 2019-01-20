@@ -5,7 +5,7 @@ breed [gps gp]
 
 processors-own[material pheromone concentrations]
 gps-own[gp_type gp_pos visited concentrations concentration]
-globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp act_gp_type done manual-version active-gp-list hc-counter]
+globals[mouse-was-down? growing-point initial-GP-set static-GP-set gp-counter rad act_gp act_gp_type done manual-version active-gp-list hc-counter hc_minus]
 
 
 
@@ -194,7 +194,7 @@ to calculate-concentrations [radius]
         set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
       ]
     ]
-    if manual-version = true
+    if manual-version = true or hc_minus = true
     [
       ask other gps in-radius radius[
         array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for moving gps in the given radius
@@ -276,7 +276,17 @@ to go
               if [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp] = 0[
                 ask gps with [gp_pos = act_gp][set visited true]
                 set concentration 0
-                set act_gp act_gp + 1
+                ifelse manual-version = true
+          [
+            set act_gp act_gp + 1  ; we set the number of the next active GP
+          ]
+          [
+            set hc-counter hc-counter + 1 ; global iterator for hardcoded version
+            if hc-counter < length active-gp-list ; while the iterator is smaller then the length of the hardcoded growing points list
+            [
+              set act_gp item hc-counter active-gp-list ; set active gp to the one that is at the iterator's place in the list
+            ]
+          ]
                 set rad 0
                 if not any? gps with [visited = false] [set done true]
               ]
@@ -297,7 +307,17 @@ to go
           ifelse [array:item concentrations act_gp] of min-one-of other processors in-radius rad [array:item concentrations act_gp] = 0[
             ask gps with [gp_pos = act_gp][set visited true]
             set concentration 0
-            set act_gp act_gp + 1
+             ifelse manual-version = true
+          [
+            set act_gp act_gp + 1  ; we set the number of the next active GP
+          ]
+          [
+            set hc-counter hc-counter + 1 ; global iterator for hardcoded version
+            if hc-counter < length active-gp-list ; while the iterator is smaller then the length of the hardcoded growing points list
+            [
+              set act_gp item hc-counter active-gp-list ; set active gp to the one that is at the iterator's place in the list
+            ]
+          ]
             set rad 0
             if not any? gps with [visited = false] [set done true]
           ][
@@ -345,12 +365,17 @@ end
 
 
 
-to hardcoded_plus [hc-radius hc-x hc-y]
+to hardcoded_plus [hc-radius hc-x hc-y] ; function to bypass mouse clicks and pass hardcoded coordinates as parameters
   add-GP "plus" hc-x hc-y
   calculate-concentrations hc-radius
 end
 
-to house
+to hardcoded_minus [hc-radius hc-x hc-y]
+  add-GP "minus" hc-x hc-y
+  calculate-concentrations hc-radius
+end
+
+to house_plus
   set manual-version false
   set active-gp-list [0 1 2 0 3 4 1 3 2] ;list of gps to visit in this particular order
  add-GP "moving" -20 -20 ;mover
@@ -359,7 +384,7 @@ to house
   stop
 end
 
-to heart
+to heart_plus
   set manual-version false
   set active-gp-list [0 1 2 3 4 5 6 7 8 9 0]
   add-GP "moving" 0 20
@@ -367,12 +392,32 @@ to heart
   foreach heart_points [ i ->  hardcoded_plus 30 item 0 i item 1 i]
   stop
 end
+
+to house_minus
+  set manual-version false
+  set hc_minus true
+  set active-gp-list [0 1 2 0 3 4 1 3 2] ;list of gps to visit in this particular order
+ add-GP "moving" -20 -20 ;mover
+  let house_points  [[-20 -20] [20 20] [20 -20] [-20 20] [0 43]] ; hardcoded points whose indexec correspond with the active-gp-list
+  foreach house_points [ i ->  hardcoded_minus 60 item 0 i item 1 i] ; set radius and xy coordinates for every point
+  stop
+end
+
+to heart_minus
+  set manual-version false
+  set hc_minus true
+  set active-gp-list [0 1 2 3 4 5 6 7 8 9 0]
+  add-GP "moving" 0 20
+  let heart_points  [[0 20] [10 30] [20 30] [30 20] [30 0] [0 -30] [-30 0] [-30 20] [-20 30] [-10 30]]
+  foreach heart_points [ i ->  hardcoded_minus 60 item 0 i item 1 i]
+  stop
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 262
 19
-1057
-815
+977
+735
 -1
 -1
 7.0
@@ -530,10 +575,10 @@ HORIZONTAL
 BUTTON
 66
 395
-132
+160
 428
 NIL
-House
+house_plus\n
 NIL
 1
 T
@@ -547,10 +592,44 @@ NIL
 BUTTON
 69
 452
-132
+159
 485
 NIL
-Heart
+heart_plus
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+67
+533
+170
+566
+NIL
+house_minus
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+69
+589
+169
+622
+NIL
+heart_minus\n
 NIL
 1
 T
