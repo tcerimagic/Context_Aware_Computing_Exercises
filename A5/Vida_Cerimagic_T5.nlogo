@@ -194,8 +194,11 @@ to calculate-concentrations [radius]
         set color tmp * 10 - array:item concentrations tmp * 0.25 ; colouring
       ]
     ]
-    ask other gps in-radius radius[
-      array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for moving gps in the given radius
+    if manual-version = true
+    [
+      ask other gps in-radius radius[
+        array:set concentrations tmp radius - (distance myself) ;we calculate the concentrations for moving gps in the given radius
+      ]
     ]
   ]
 end
@@ -209,21 +212,12 @@ to go
       ]
       ifelse act_gp_type = "plus" [
         let tmp concentration ; so we move only to processors with higher concentration than the one at the current patch
-        ifelse concentration = 0 [
-          while[not any? other processors in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
-            set rad rad + 1
-          ]
-          set concentration [array:item concentrations act_gp] of max-one-of other processors in-radius rad [array:item concentrations act_gp]
-          move-to max-one-of other processors in-radius rad [array:item concentrations act_gp] ; we move
-          ask turtles-here [set color red]
-        ][
-                    while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
-            set rad rad + 1
-          ]
-          set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
-          move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
-          ask turtles-here [set color red]
+        while[not any? other turtles in-radius rad with [array:item concentrations act_gp > tmp]][ ; increasing the radius till we find suitable processor for the movement
+          set rad rad + 1
         ]
+        set concentration [array:item concentrations act_gp] of max-one-of other turtles in-radius rad [array:item concentrations act_gp]
+        move-to max-one-of other turtles in-radius rad [array:item concentrations act_gp] ; we move
+        ask turtles-here [set color red]
         if any? other gps-here [ ; if there are 2 GP at this patch -> we are in active GP
           ifelse manual-version = true
           [
